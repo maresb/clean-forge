@@ -83,7 +83,9 @@ setup_user () {
         if [ ! -z "${conda_gid:-}" ]; then
             extra_args+=( "-g" "${conda_gid}" )
         fi
-        useradd -m "${extra_args[@]}"
+        set -x
+        useradd -m "${extra_args[@]}" "${conda_user}"
+        set +x
     fi
 
     conda_uid=$(id -u "${conda_user}")
