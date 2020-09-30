@@ -40,7 +40,7 @@ mamba_init_script () {
 
     # Modify .bashrc.
     ${micromamba_cmd} shell init -s bash -p "${conda_dest}" > /dev/null
-    
+
     # Strip and print modifications to .bashrc.
     sed -i -e '/^# >>> mamba initialize >>>/,/^# <<< mamba initialize <<</{w /dev/stdout' -e 'd}' ~/.bashrc
 
@@ -89,9 +89,9 @@ setup_user () {
         if [ ! -z "${conda_gid:-}" ]; then
             extra_args+=( "-g" "${conda_gid}" )
         fi
-        set -x
+
         useradd -m -s /bin/bash "${extra_args[@]}" "${conda_user}"
-        set +x
+
     fi
 
     conda_uid=$(id -u "${conda_user}")
@@ -101,8 +101,6 @@ setup_user () {
 }
 
 setup_user
-
-set -x
 
 conda_user_home=$(eval echo "~$conda_user")
 
@@ -118,11 +116,10 @@ if [ -z "${conda_dest:-}" ]; then
     fi
 fi
 
-set +x
-
 # Initialize bash to provide a micromamba bash function. (Confusingly, this
 # function name conflicts with the name of the downloaded file.)
-eval "$(mamba_init_script)"
+mamba_init_script_contents="$(mamba_init_script)"
+eval "${mamba_init_script_contents}"
 
 echo Destination: ${conda_dest}
 
@@ -152,12 +149,9 @@ set -u
 
 # Clean up.
 # (Note: if conda isn't installed, then we won't clean the cache.)
-rm /tmp/micromamba
 if command -v conda &> /dev/null; then
     conda clean --all -f -y
 fi
-
-set -x
 
 # Delete given unnecessary file types.
 # e.g. set the build argument
@@ -173,8 +167,7 @@ chown -R ${conda_uid}:${conda_gid} "${conda_dest}"
 
 # Initialize shell for $conda_user
 
-conda_init_script="${conda_dest}/etc/profile.d/conda.sh"
-mamba_init_script="${conda_dest}/etc/profile.d/mamba.sh"
+conda_sh="${conda_dest}/etc/profile.d/conda.sh"
 
 bashrc_files_array=( "${conda_user_home}/.bashrc" )
 
@@ -189,16 +182,21 @@ fi
 
 for bashrc_file in "${bashrc_files_array[@]}"; do
 
-    if [ -f "${conda_init_script}" ]; then
-        echo "# Initialize conda." >> "${bashrc_file}"
-        echo ". \'${conda_init_script}\' && conda activate base" >> "${bashrc_file}"
-        echo "# Initialized." >> "${bashrc_file}"
-    fi
+    if [ -f "${conda_sh}" ]; then
 
-    if [ -f "${mamba_init_script}" ]; then
-        echo "# Initialize mamba." >> "${bashrc_file}"
-        echo ". \'${mamba_init_script}\' && mamba activate base" >> "${bashrc_file}"
+        echo "# Initialize conda." >> "${bashrc_file}"
+        echo ". \"${conda_sh}\" && conda activate base" >> "${bashrc_file}"
         echo "# Initialized." >> "${bashrc_file}"
+
+        # Now we have conda, so get rid of micromamba.
+        rm -f "${micromamba_cmd}"
+
+    else
+
+        # There is no conda, so we need to keep micromamba.
+        echo >> "${bashrc_file}"
+        echo "${mamba_init_script_contents}" >> "${bashrc_file}"
+
     fi
 
     # TODO: initialize micromamba if neither conda nor mamba is installed.
