@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Good references include:
+# - https://github.com/jupyter/docker-stacks/blob/master/base-notebook/Dockerfile
+# - https://github.com/conda-forge/docker-images/blob/master/miniforge3/Dockerfile
+
 # -e: end execution on error
 # -u: error on undefined variable
 # -o pipefail: error if any part of a pipe fails
@@ -19,6 +23,7 @@ set -e -o pipefail
 #     fi
 # fi
 
+mkdir -p "${micromamba_install_dir}"
 cd "${micromamba_install_dir}"
 wget -qO- "${micromamba_url}" | tar -xvj bin/micromamba --strip-components=1
 micromamba_cmd="${micromamba_install_dir}/micromamba"
@@ -47,6 +52,7 @@ mamba_init_script () {
 }
 
 setup_user () {
+
     # Set $conda_user if not already defined.
     if [ -z "${conda_user:-}" ]; then
         # $conda_user is undefined.
@@ -84,19 +90,21 @@ setup_user () {
             extra_args+=( "-g" "${conda_gid}" )
         fi
         set -x
-        useradd -m "${extra_args[@]}" "${conda_user}"
+        useradd -m -s /bin/bash "${extra_args[@]}" "${conda_user}"
         set +x
     fi
 
     conda_uid=$(id -u "${conda_user}")
     conda_gid=$(id -g "${conda_user}")
 
-    echo "User ${conda_user} ${conda_uid}:${conda_gid}"
+    echo "Ready to install conda for user ${conda_user} ${conda_uid}:${conda_gid}"
 }
 
 setup_user
 
 set -x
+
+conda_user_home=$(eval echo "~$conda_user")
 
 if [ -z "${conda_dest:-}" ]; then
     # $conda_dest is undefined, so set a default value
@@ -106,7 +114,7 @@ if [ -z "${conda_dest:-}" ]; then
         conda_dest=/opt/conda
     else
         # Conda user isn't root. Install into conda subdir of their home.
-        conda_dest=$(eval echo "~$conda_user/conda")
+        conda_dest="${conda_user_home}/conda"
     fi
 fi
 
@@ -162,6 +170,40 @@ done
 
 # Recursively set permissions
 chown -R ${conda_uid}:${conda_gid} "${conda_dest}"
+
+# Initialize shell for $conda_user
+
+conda_init_script="${conda_dest}/etc/profile.d/conda.sh"
+mamba_init_script="${conda_dest}/etc/profile.d/mamba.sh"
+
+bashrc_files_array=( "${conda_user_home}/.bashrc" )
+
+
+if [ -w "/etc/skel/.bashrc" ]; then
+    bashrc_files_array+=( "/etc/skel/.bashrc" )
+fi
+
+if [ "$(id -u)" -ne $conda_uid ]; then
+    bashrc_files_array+=( "~/.bashrc" )
+fi
+
+for bashrc_file in "${bashrc_files_array[@]}"; do
+
+    if [ -f "${conda_init_script}" ]; then
+        echo "# Initialize conda." >> "${bashrc_file}"
+        echo ". \'${conda_init_script}\' && conda activate base" >> "${bashrc_file}"
+        echo "# Initialized." >> "${bashrc_file}"
+    fi
+
+    if [ -f "${mamba_init_script}" ]; then
+        echo "# Initialize mamba." >> "${bashrc_file}"
+        echo ". \'${mamba_init_script}\' && mamba activate base" >> "${bashrc_file}"
+        echo "# Initialized." >> "${bashrc_file}"
+    fi
+
+    # TODO: initialize micromamba if neither conda nor mamba is installed.
+
+done
 
 # Self-destruct
 rm $0
