@@ -177,7 +177,8 @@ if [ -w "/etc/skel/.bashrc" ]; then
 fi
 
 if [ "$(id -u)" -ne $conda_uid ]; then
-    bashrc_files_array+=( "~/.bashrc" )
+    my_bash_rc=$(eval echo "~/.bashrc")
+    bashrc_files_array+=( "${my_bash_rc}" )
 fi
 
 for bashrc_file in "${bashrc_files_array[@]}"; do
