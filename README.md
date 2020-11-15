@@ -5,7 +5,7 @@ Add a clean and customizable conda to a Docker image
 
 ## Motivation
 
-**[Anaconda](https://www.anaconda.com/)** is the industry standard tool for package management in data science. It envelops the functionality of [pip](https://pypi.org/project/pip/), extending it beyond the realm of Python to external (non-Python) dependencies. That is why Anaconda is the recommended method for [installing packages such as numpy](https://numpy.org/install/).
+**[Anaconda](https://www.anaconda.com/)** is the industry standard tool for package management and reproducible environments in data science. Unlike [pip](https://pypi.org/project/pip/) and relatives, Anaconda takes package management beyond Python, allowing for the installation of external (non-Python) dependencies, such as linear algebra libraries. That is why Anaconda is the recommended method for [installing packages such as numpy](https://numpy.org/install/).
 
 Anaconda is rather bloated for usage in small projects, but thankfully there is a [minimalist version called **Miniconda**](https://docs.conda.io/en/latest/miniconda.html).
 
